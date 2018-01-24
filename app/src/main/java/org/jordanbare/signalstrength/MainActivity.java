@@ -2,6 +2,7 @@ package org.jordanbare.signalstrength;
 
 /**
  * Created by jordanbare on 1/1/18.
+ * Note that this is a work in progress.
  */
 
 import android.Manifest;
@@ -25,16 +26,16 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.ToggleButton;
 
+import java.io.FileOutputStream;
+import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity{
 
-    static int COARSE_LOCATION_PERMISSION = 1;
-    static int FINE_LOCATION_PERMISSION = 2;
     private Intent mLocationServiceIntent;
     private BroadcastReceiver mBroadcastReceiver;
-    private TextView mlatitudeTextView;
+    private TextView mLatitudeTextView;
     private TextView mLongitudeTextView;
     private Canvas mCanvas;
     private ImageView mDrawView;
@@ -79,7 +80,7 @@ public class MainActivity extends AppCompatActivity{
                     CellphoneInfoSnapshot cellphoneInfoSnapshot = new CellphoneInfoSnapshot(location, cellInfoData.retrieveCellTowerData(),
                             cellInfoData.retrieveNetworkType(), cellInfoData.retrievePhoneRadioType());
 
-                    mlatitudeTextView.setText("Latitude: " + cellphoneInfoSnapshot.getLocation().getLatitude());
+                    mLatitudeTextView.setText("Latitude: " + cellphoneInfoSnapshot.getLocation().getLatitude());
                     mLongitudeTextView.setText("Longitude: " + cellphoneInfoSnapshot.getLocation().getLongitude());
                     mGraphView.initializeDataToDraw(cellphoneInfoSnapshot.getCellInfoMap());
                     mGraphView.draw(mCanvas);
@@ -104,7 +105,6 @@ public class MainActivity extends AppCompatActivity{
         }
     }
 
-    //I should add an AlertDialog here later on.
     @Override
     public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults){
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
@@ -115,6 +115,7 @@ public class MainActivity extends AppCompatActivity{
                         grantResults[1] == PackageManager.PERMISSION_GRANTED) {
                 }
                 else {
+                    //Ideally, an AlertDialog asking the user to reconsider would go here
                     MainActivity.this.finish();
                 }
                 break;
@@ -135,15 +136,36 @@ public class MainActivity extends AppCompatActivity{
     }
 
     private void initializeTextViews(){
-        mlatitudeTextView = (TextView) findViewById(R.id.latitudeTextView);
-        mlatitudeTextView.setText("Waiting for latitude...");
+        mLatitudeTextView = (TextView) findViewById(R.id.latitudeTextView);
+        mLatitudeTextView.setText("Waiting for latitude...");
         mLongitudeTextView = (TextView) findViewById(R.id.longitudeTextView);
         mLongitudeTextView.setText("Waiting for longitude...");
+    }
+
+    //Currently just stores the info locally..longterm plan is to store in AWS S3 buckets
+    private void storeCellInfo(){
+        String filename = "cellInfo.data";
+        FileOutputStream fileOutputStream;
+        ObjectOutputStream objectOutputStream;
+
+        try {
+            fileOutputStream = openFileOutput(filename, Context.MODE_PRIVATE);
+            objectOutputStream = new ObjectOutputStream(fileOutputStream);
+
+            objectOutputStream.writeObject(mCellphoneInfoSnapshotList);
+            objectOutputStream.close();
+            fileOutputStream.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
     public void onDestroy(){
         super.onDestroy();
+
+        storeCellInfo();
+
         if(mBroadcastReceiver != null){
             unregisterReceiver(mBroadcastReceiver);
         }
@@ -152,6 +174,5 @@ public class MainActivity extends AppCompatActivity{
         } catch(Exception e){
 
         }
-
     }
 }
